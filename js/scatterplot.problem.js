@@ -101,19 +101,22 @@ function scatter_plot(
     Fig.call(brush);
 
     function brushStart() {
-        d3.selectAll("circle").classed("selected", false); // Clear selection
+        d3.selectAll("circle")
+            .classed("selected", false)
+            .style("stroke", null)
+            .style("stroke-width", null); // Clear selection
     }
 
     function brushed() {
         const selection = d3.brushSelection(this);
-        if (!selection){
+        if (!selection) {
             d3.selectAll("circle")
-            .classed("selected", false)
-            .style("opacity", 1) // Reset opacity for all points
-            .style("stroke", null) // Remove any stroke
-            .style("stroke-width", null); // Remove any stroke width
-
-         return;}
+                .classed("selected", false)
+                .style("stroke", null)
+                .style("stroke-width", null)
+                .style("opacity", d => (window.visibilityMap[d[colorCol]] ? 1 : 0.1)); // Reset based on visibility
+            return;
+        }
 
         const [[x1, y1], [x2, y2]] = selection;
         const X1 = xScale.invert(x1);
@@ -121,16 +124,25 @@ function scatter_plot(
         const Y1 = yScale.invert(y2); // Note: Inverted Y-axis
         const Y2 = yScale.invert(y1);
 
-        d3.selectAll("circle").classed("selected", d =>
-            d[xCol] >= X1 && d[xCol] <= X2 && d[yCol] >= Y1 && d[yCol] <= Y2
-        )
-        
-        .style("stroke", d =>
-            d[xCol] >= X1 && d[xCol] <= X2 && d[yCol] >= Y1 && d[yCol] <= Y2 ? "black" : null
-        )
-        .style("stroke-width", d =>
-            d[xCol] >= X1 && d[xCol] <= X2 && d[yCol] >= Y1 && d[yCol] <= Y2 ? "2px" : null
-        );
+        d3.selectAll("circle")
+            .classed("selected", d =>
+                window.visibilityMap[d[colorCol]] && // Check visibility map
+                d[xCol] >= X1 && d[xCol] <= X2 &&
+                d[yCol] >= Y1 && d[yCol] <= Y2
+            )
+            .style("stroke", d =>
+                window.visibilityMap[d[colorCol]] && // Check visibility map
+                d[xCol] >= X1 && d[xCol] <= X2 &&
+                d[yCol] >= Y1 && d[yCol] <= Y2 ? "black" : null
+            )
+            .style("stroke-width", d =>
+                window.visibilityMap[d[colorCol]] && // Check visibility map
+                d[xCol] >= X1 && d[xCol] <= X2 &&
+                d[yCol] >= Y1 && d[yCol] <= Y2 ? "2px" : null
+            )
+            .style("opacity", d =>
+                window.visibilityMap[d[colorCol]] ? 1 : 0.1 // Ensure hidden categories stay dim
+            );
     }
 
     // Create a global visibility map
@@ -162,19 +174,15 @@ function scatter_plot(
         const isVisible = window.visibilityMap[d] = !window.visibilityMap[d]; // Toggle visibility
 
         d3.selectAll("circle")
-        .style("opacity", circle =>
-            window.visibilityMap[circle[colorCol]] ? 1 : 0.1 // Dim non-selected categories
-        );
+            .style("opacity", circle =>
+                window.visibilityMap[circle[colorCol]] ? 1 : 0.1 // Dim non-selected categories
+            )
+            .classed("selected", false); // Deselect points when toggled off
 
-    // Update the opacity of the currently toggled category
-    d3.selectAll(`circle.${d}`)
-        .style("opacity", isVisible ? 1 : 0.1); // Keep selected category fully visible or dim it
-
-    // Update the legend rectangle's appearance to reflect selection
-    d3.selectAll(`rect.${d}`)
-        .style("opacity", isVisible ? 1 : 0.1); // Dim the legend rectangle when inactive
-});
-    
+        // Update the legend rectangle's appearance to reflect selection
+        d3.selectAll(`rect.${d}`)
+            .style("opacity", isVisible ? 1 : 0.1); // Dim the legend rectangle when inactive
+    });
 
     legends_items.append("text")
         .text(d => d)
